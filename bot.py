@@ -9,6 +9,8 @@ from linebot.exceptions import (
 from linebot.models import (
     MemberJoinedEvent,MessageEvent, TextMessage, TextSendMessage,TemplateSendMessage, ImageCarouselTemplate ,ImageCarouselColumn ,MessageAction,URIAction,PostbackEvent,ButtonsTemplate,PostbackTemplateAction,CarouselTemplate,CarouselColumn,FlexSendMessage,ImageSendMessage,VideoSendMessage,PostbackAction,AudioMessage)
 import logging,os
+import openai
+import base64
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
@@ -19,7 +21,15 @@ app = Flask(__name__)
 line_bot_api = LineBotApi(os.environ['LINE_ACCESS_TOKEN'])
 handler = WebhookHandler(os.environ['LINE_ACCESS_SECRET'])
 google_api_key = os.getenv("GOOGLE_TRANSLATION_API_KEY")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
+
+def openaispeech(filepath):
+    audio_file= open(filepath, "rb")
+    transcript = openai.Audio.transcribe("whisper-1", audio_file)
+    #transcript = openai.Audio.translate("whisper-1", audio_file)
+    logger.info(f'#######{transcript["text"]}')
+    return transcript["text"]
 
 
 def detect(text):
@@ -44,6 +54,8 @@ def googletranslate(source,target,text):
     response = requests.get(api_endpoint, params=params)
     data = response.json()
     translated_text = data['data']['translations'][0]['translatedText']
+    translated_text = translated_text.replace("&#39;","'")
+    logger.info(f'#######{translated_text}')
     return translated_text
 
 @app.route("/")
@@ -70,7 +82,26 @@ def handle_membermessage(event):
 
 @handler.add(MessageEvent)
 def handle_message(event):
-    if event.message.type=="text" :
+    if (event.message.type == "audio"):
+
+        UserSendAudio = line_bot_api.get_message_content(event.message.id)
+        path=  event.message.id + '.m4a'
+
+        with open(path, 'wb') as fd:
+            for chunk in UserSendAudio.iter_content():
+                fd.write(chunk)
+        
+        text = openaispeech(path)
+        language = detect(text)
+        if language == 'zh-CN' or language == 'zh-TW':
+            translated_text = googletranslate(language,'en',text)
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
+        elif language == 'en':
+            translated_text = googletranslate(language,'zh-TW',text)
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
+        os.remove(path)
+        
+    elif event.message.type=="text" :
         if event.source.type=="group" or event.source.type=="room" or event.source.type=='user':
             language = detect(event.message.text)
             if language == 'zh-CN' or language == 'zh-TW':

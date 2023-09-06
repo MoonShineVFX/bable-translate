@@ -5,7 +5,6 @@ WORKDIR /bot
 ADD requirements.txt /tmp
 RUN apt-get update -y && \
     apt-get install -y python3-pip
-RUN apt-get install -y ffmpeg
 RUN pip3 install -r /tmp/requirements.txt
 
 ADD . /bot

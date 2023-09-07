@@ -12,6 +12,7 @@ import logging,os,time
 import openai
 import base64
 from mutagen.mp3 import MP3
+import boto3
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
@@ -25,6 +26,20 @@ google_api_key = os.getenv("GOOGLE_TRANSLATION_API_KEY")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 google_speech_api_key = os.getenv("GOOGLE_TEXT_TO_SPEECH_API_KEY")
 app_url = os.getenv("APP_URL")
+
+r2_access_key_id = os.getenv("R2_ACCESS_KEY_ID")
+r2_secret_access_key = os.getenv("R2_SECRET_ACCESS_KEY")
+bucket_name = os.getenv("BUCKET_NAME")
+r2_url = os.getenv("R2_URL")
+s3 = boto3.resource('s3',endpoint_url = r2_url,aws_access_key_id = r2_access_key_id,aws_secret_access_key = r2_secret_access_key)
+
+def upload_file_to_r2(file_path):
+    s3_file_path = file_path
+    s3_file_path = s3_file_path.replace('\\', '/')
+    bucket = s3.Bucket(bucket_name)
+    bucket.upload_file(file_path, s3_file_path)
+    return app_url+file_path
+
 
 def text2speech(text,languageCode,file_path):
     api_endpoint = 'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + google_speech_api_key
@@ -131,16 +146,16 @@ def handle_message(event):
         if language == 'zh-CN' or language == 'zh-TW':
             translated_text = googletranslate(language,'en',text)
             file,duration = text2speech(translated_text,'en-US',event.message.id+'_t.mp3')
-            audio_url = f'{app_url}audio/{file}'
-            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration+1000))
+            audio_url = upload_file_to_r2(file)
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
         elif language == 'en':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
-            audio_url = f'{app_url}audio/{file}'
+            audio_url = upload_file_to_r2(file)
             line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
         try:
             os.remove(path)
-            time.sleep(30)
+            time.sleep(10)
             os.remove(file)
         except:
             logger.info(f'找不到檔案')

@@ -4,3 +4,4 @@ Flask==2.2.2
 google-cloud-vision==3.3.0
 openai==0.27.0
 mutagen==1.47.0
+boto3==1.28.42

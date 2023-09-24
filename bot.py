@@ -13,6 +13,8 @@ import openai
 import base64
 from mutagen.mp3 import MP3
 import boto3
+import sqlite3
+
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
@@ -32,6 +34,11 @@ r2_secret_access_key = os.getenv("R2_SECRET_ACCESS_KEY")
 bucket_name = os.getenv("BUCKET_NAME")
 r2_url = os.getenv("R2_URL")
 s3 = boto3.resource('s3',endpoint_url = r2_url,aws_access_key_id = r2_access_key_id,aws_secret_access_key = r2_secret_access_key)
+
+langlist={"th": "Thai",
+          "ja":"Japanese",
+          "en": "English"
+          }
 
 def upload_file_to_r2(file_path):
     s3_file_path = file_path
@@ -95,10 +102,52 @@ def googletranslate(source,target,text):
     api_endpoint = 'https://translation.googleapis.com/language/translate/v2'
     response = requests.get(api_endpoint, params=params)
     data = response.json()
+    logger.info(f'googletranslate data:{data}')
     translated_text = data['data']['translations'][0]['translatedText']
     translated_text = translated_text.replace("&#39;","'")
     logger.info(f'#######{translated_text}')
     return translated_text
+
+def check_lang_target(groupid):
+    try:
+        conn = sqlite3.connect('babel.db')
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT lang FROM setting where groupid='{groupid}'")
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        if rows == []:
+            return 'en'
+        else:
+            for row in rows:
+                return row[0]
+    except Exception as e :
+        logger.error(f'check_lang_target e:{e}')
+        cursor.close()
+        conn.close()
+
+def update_lang_target(groupid,lang):
+    try:
+        conn = sqlite3.connect('babel.db')
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT lang FROM setting where groupid='{groupid}'")
+
+        rows = cursor.fetchall()
+        if rows == []:
+            cursor.execute('INSERT INTO setting (groupid, lang) VALUES (?, ?)', (groupid, lang))        
+            conn.commit()
+        else:
+            cursor.execute('UPDATE setting SET lang = ? WHERE groupid = ?', (lang, groupid))
+            conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e :
+        cursor.execute('INSERT INTO setting (groupid, lang) VALUES (?, ?)', (groupid, lang))
+        conn.commit()
+        logger.error(f'e:{e}')
+        cursor.close()
+        conn.close()
+    
 
 @app.route("/")
 def home():
@@ -132,8 +181,15 @@ def handle_membermessage(event):
 
 @handler.add(MessageEvent)
 def handle_message(event):
-    if (event.message.type == "audio"):
+    if event.source.type=="group":
+        groupid = str(event.source.group_id)
+    elif event.source.type=="room":
+        groupid = str(event.source.room_id)
+    else:
+        groupid = str(event.source.user_id)
 
+    if (event.message.type == "audio"):
+        
         UserSendAudio = line_bot_api.get_message_content(event.message.id)
         path=  event.message.id + '.m4a'
 
@@ -143,12 +199,24 @@ def handle_message(event):
         
         text = openaispeech2text(path)
         language = detect(text)
+        logger.info(f"language:{language}")
+        target = check_lang_target(groupid)
         if language == 'zh-CN' or language == 'zh-TW':
-            translated_text = googletranslate(language,'en',text)
-            file,duration = text2speech(translated_text,'en-US',event.message.id+'_t.mp3')
+            translated_text = googletranslate(language,target,text)
+            file,duration = text2speech(translated_text,target,event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
             line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
         elif language == 'en':
+            translated_text = googletranslate(language,'zh-TW',text)
+            file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
+            audio_url = upload_file_to_r2(file)
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+        elif language == 'th':
+            translated_text = googletranslate(language,'zh-TW',text)
+            file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
+            audio_url = upload_file_to_r2(file)
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+        elif language == 'ja':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
@@ -162,14 +230,31 @@ def handle_message(event):
 
     elif event.message.type=="text" :
         if event.source.type=="group" or event.source.type=="room" or event.source.type=='user':
-            language = detect(event.message.text)
-            if language == 'zh-CN' or language == 'zh-TW':
-                translated_text = googletranslate(language,'en',event.message.text)
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
-            elif language == 'en':
-                translated_text = googletranslate(language,'zh-TW',event.message.text)
-                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
+            if event.message.text.lower().startswith('/setting '):
+                lang = event.message.text.lower().replace('/setting ','')
+                if lang in langlist:
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=langlist[lang]))
+                    update_lang_target(groupid,lang)
+                    target = check_lang_target(groupid)
+                else:
+                    txt = 'Currently supported languages,\nth: Thai \nja: Japanese\nen: English\n'
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=txt))
 
+            else:
+                language = detect(event.message.text)
+                target = check_lang_target(groupid)
+                if language == 'zh-CN' or language == 'zh-TW':
+                    translated_text = googletranslate(language,target,event.message.text)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
+                elif language == 'en':
+                    translated_text = googletranslate(language,'zh-TW',event.message.text)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
+                elif language == 'th':
+                    translated_text = googletranslate(language,'zh-TW',event.message.text)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
+                elif language == 'ja':
+                    translated_text = googletranslate(language,'zh-TW',event.message.text)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
 
         
 

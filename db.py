@@ -64,7 +64,3 @@ def show():
     conn.close()
 
 
-#print(check_lang_target("Ua1328e90858bad89e9e14c6f26aef63b"))
-print(check_lang_target("C48224f7f7448e35a90a84554c3975f0e"))
-#update_lang_target("C48224f7f7448e35a90a84554c3975f0e","jp")
-show()

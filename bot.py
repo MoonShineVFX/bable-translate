@@ -117,7 +117,7 @@ def check_lang_target(groupid):
         cursor.close()
         conn.close()
         if rows == []:
-            return 'en'
+            return 'th'
         else:
             for row in rows:
                 return row[0]

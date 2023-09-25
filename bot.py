@@ -176,7 +176,7 @@ def downloadaudio(filename):
 @handler.add(MemberJoinedEvent)
 def handle_membermessage(event):
     if (event.type=="memberJoined"):
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="嗨！我是 Moonshot 一個翻譯機器人~"))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="嗨！我是Moonshot翻譯機器人,能夠將中文翻譯成英文、日文或泰文。\n\n可使用/setting指令切換\nEx. /setting ja\n\n支援清單:\nth: Thai\nja: Japanese\nen: English\n"))
 
 
 @handler.add(MessageEvent)

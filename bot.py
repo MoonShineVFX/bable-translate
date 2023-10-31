@@ -37,7 +37,8 @@ s3 = boto3.resource('s3',endpoint_url = r2_url,aws_access_key_id = r2_access_key
 
 langlist={"th": "Thai",
           "ja":"Japanese",
-          "en": "English"
+          "en": "English",
+          "ko": "Korea"
           }
 
 def upload_file_to_r2(file_path):
@@ -117,7 +118,7 @@ def check_lang_target(groupid):
         cursor.close()
         conn.close()
         if rows == []:
-            return 'th'
+            return 'ko'
         else:
             for row in rows:
                 return row[0]
@@ -206,6 +207,11 @@ def handle_message(event):
             file,duration = text2speech(translated_text,target,event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
             line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+        elif language == 'ko':
+            translated_text = googletranslate(language,'zh-TW',text)
+            file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
+            audio_url = upload_file_to_r2(file)
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
         elif language == 'en':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
@@ -245,6 +251,9 @@ def handle_message(event):
                 target = check_lang_target(groupid)
                 if language == 'zh-CN' or language == 'zh-TW':
                     translated_text = googletranslate(language,target,event.message.text)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
+                elif language == 'ko':
+                    translated_text = googletranslate(language,'zh-TW',event.message.text)
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
                 elif language == 'en':
                     translated_text = googletranslate(language,'zh-TW',event.message.text)

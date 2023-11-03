@@ -38,7 +38,8 @@ s3 = boto3.resource('s3',endpoint_url = r2_url,aws_access_key_id = r2_access_key
 langlist={"th": "Thai",
           "ja":"Japanese",
           "en": "English",
-          "ko": "Korea"
+          "ko": "Korea",
+          "fr": "French"
           }
 
 def upload_file_to_r2(file_path):
@@ -118,7 +119,7 @@ def check_lang_target(groupid):
         cursor.close()
         conn.close()
         if rows == []:
-            return 'ko'
+            return 'fr'
         else:
             for row in rows:
                 return row[0]
@@ -177,7 +178,7 @@ def downloadaudio(filename):
 @handler.add(MemberJoinedEvent)
 def handle_membermessage(event):
     if (event.type=="memberJoined"):
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="嗨！我是Moonshot翻譯機器人,能夠將中文翻譯成英文、日文或泰文。\n\n可使用/setting指令切換\nEx. /setting ja\n\n支援清單:\nth: Thai\nja: Japanese\nen: English\n"))
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="嗨！我是Moonshot翻譯機器人,能夠將中文翻譯成英文、日文或泰文。\n\n可使用/setting指令切換\nEx. /setting ja\n\n支援清單:\nth: Thai\nja: Japanese\nen: English\nko: 한국어\nfr: French"))
 
 
 @handler.add(MessageEvent)
@@ -212,6 +213,7 @@ def handle_message(event):
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
             line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+
         elif language == 'en':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
@@ -223,6 +225,11 @@ def handle_message(event):
             audio_url = upload_file_to_r2(file)
             line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
         elif language == 'ja':
+            translated_text = googletranslate(language,'zh-TW',text)
+            file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
+            audio_url = upload_file_to_r2(file)
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+        elif language == 'fr':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
@@ -243,7 +250,7 @@ def handle_message(event):
                     update_lang_target(groupid,lang)
                     target = check_lang_target(groupid)
                 else:
-                    txt = 'Currently supported languages,\nth: Thai \nja: Japanese\nen: English\n'
+                    txt = 'Currently supported languages,\nth: Thai \nja: Japanese\nen: English\nko: 한국어'
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=txt))
 
             else:
@@ -262,6 +269,9 @@ def handle_message(event):
                     translated_text = googletranslate(language,'zh-TW',event.message.text)
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
                 elif language == 'ja':
+                    translated_text = googletranslate(language,'zh-TW',event.message.text)
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
+                elif language == 'fr':
                     translated_text = googletranslate(language,'zh-TW',event.message.text)
                     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=translated_text))
 

@@ -207,33 +207,33 @@ def handle_message(event):
             translated_text = googletranslate(language,target,text)
             file,duration = text2speech(translated_text,target,event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
-            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1500))
         elif language == 'ko':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
-            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1500))
 
         elif language == 'en':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
-            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1500))
         elif language == 'th':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
-            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1500))
         elif language == 'ja':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
-            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1500))
         elif language == 'fr':
             translated_text = googletranslate(language,'zh-TW',text)
             file,duration = text2speech(translated_text,'zh-TW',event.message.id+'_t.mp3')
             audio_url = upload_file_to_r2(file)
-            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1000))
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=duration*1500))
         try:
             os.remove(path)
             time.sleep(10)
